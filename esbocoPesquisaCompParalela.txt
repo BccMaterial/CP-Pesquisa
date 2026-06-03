@@ -1,0 +1,76 @@
+1-Descrição do algoritmos:
+A sequência de fibonacci é uma sequência numérica onde cada termo é obtido pela soma dos dois termos anteriores. Seus casos bases são definidos da seguinte maneira:
+
+fib(0) = 0
+fib(1) = 1
+
+Sua definição recursiva, para valores maiores ou iguais a 2, é:
+
+fib(n) = fib(n - 1) + fib(n - 2)
+
+Em sua implementação recursiva tradicional, o fibonacci chama a si mesmo duas vezes para cada um de seus valores de n maiores que 1, o quê acaba gerando uma grande quantia de chamadas, especificamente quando estamos lidando com valores maiores que a entrada.
+
+2-Implementação sequencial:
+O fibonacci sequencial foi implementado de maneira direta, onde todas as chamads recursivas são executadas de uma vez por uma única thread. Para fazer a medição do tempo de execução da versão sequencial, utilizamos a função clock() da biblioteca time.h.
+
+3-Implementação com o OpenMp:
+O fibonacci paralelo utiliza "#pragma omp task" para a criação de tarefas nas chamadas recursivas, nos permitindo que as chamadas fibonacci_omp(n - 1) e fibonacci_omp(n - 2) possam ser executadas paralelamente.
+
+"task" é uma diretiva que avisa ao OpenMp que aquele determinado trecho de código pode ser executado como uma tarefa independente. "taskwait" é outra diretiva que é usada com o fim de garantir que as duas tarefas sejam terminadas antes de ocorrer a soma dos resultados.
+
+Definimos o seguinte limite sequencial:
+
+#define LIMITE_SEQUENCIAL 25
+
+O limite definido para evitar que tarefas sejam criadas para chamadas muito pequenas. Se cada chamada recursiva criasse tarefas novas, existiria um número muito grande de tarefas e o custo de gerenciamento iria sobrepor o ganho derivado do paralelismo.
+
+A chamada princiapl da função paralela foi definida dentro de uma região paralela do OpenMp. A diretiva "parallel" cria o conjunto de threads, enquanto a "single" é responsável por garantir que apenas uma única thread inicie a execução da função recursiva principal. Com isso, torna-se possível a distribuição das tarefas entre as threads disponíveis.
+
+4-Medição de tempo:
+Para realizar a avaliação de desempenho, foi feita a comparação da versão sequencial e a versão paralela do algoritmo. Foi utilizado como entrada n = 40, já que esse valor já gera uma quantia signficativa de chamadas recursivas, tornando possível a melhor observação das diferenças de tempo.
+
+No fibonacci paralelo, o número de threads pode ser alterado através da variável "OMP_NUM_THREADS". Foi utilizada a função "omp_get_wtime()" para a medição de tempo da versão paralela. Segue uma tabela dos resultados:
+
+| Versão     | Entrada | Threads | Tempo aproximado |
+| ---------- | ------: | ------: | ---------------: |
+| Sequencial |      40 |       1 |           0,85 s |
+| Paralela   |      40 |       2 |           0,55 s |
+| Paralela   |      40 |       4 |           0,38 s |
+| Paralela   |      40 |       8 |           0,35 s |
+
+Os exemplos apresentados podem variar de acordo com o computador utilizador, processador, sistema operacioanl, compiladores e a quantidade de threads disponíveis.
+
+Espera-se que haja uma melhora no desempenho na versão paralela quando existe trabalho suficiente para ser dividido entre threads. Esse ganho não aumenta indefnidamente com o aumento do número de threads.
+
+5-Discussão dos resultados:
+De acordo com os resultados, podemos concluir que a versão paralela pode apresentar ganhos de desempenho em comparação a versão sequencial, especialmente com valroes mairoes de n. O motivo para isso ocorrer é que o Fibonacci recursivo cria diversas chamadas independentes, o que torna possível o processamento de defirentes partes da árvore de recursão ao mesmo tempo por threads diferentes.
+
+Ainda assim, o desempenho da versão paralela não é definido apenas pelo número de threads. O overhead causado pela criação de tarefas é um dos principais influenciadores no resultado. Toda vez que uma diretiva "#pragma omp task" é executada, é necessário que o OpenMp realize a criação de uma nova tarefa, armazene-a internamente, gerencie-a e depois a distribua para uma thread disponível. Esse processo tem um custo.
+
+No fibonacci, esse custo pode ser muito significativo, já que o número de chamadas recursivas cresce muito rapidamente. Se tarefas forem criadas até para valores menores de n, muitas delas teram baixa quantias de trabalho para realizar. Nesse contexto específico, o tempo gasto na criação e gerenciamente dessas tarefas podem ser maior que o tempo gasto executando o cálculo de maneira sequencial.
+
+Devido a esse motivo, utilizar um limite sequencial é importante. Quando definimos "LIMITE_SEQUENCIAL = 25", evitamos que o programa crie tarefas para chamadas pequenas. Isso garante a paralelização das partes maiores da árvore recursiva, ao mesmo tempo que as partes menores são resolvidas de maneira sequencial. Isso reduz o overhead e melhora o desempenho em geral.
+
+Temos como outro fator importante o balanceamento de carga. A árvore de chamadas do algoritmo de fibonacci não é perfeitamente equilibrada: fib(n - 1) geram mais trabalho que fib(n - 2), já que ela cresce em uma quantia maior de chamadas recursivas. Isso implica que certas threads possam receber mais trabalho que as outras.
+
+Em relação a esse ponto, work stealing é muito importante. No contexto de uma execução paralela com tarefas, uma thread pode terminar suas tarefas antes de outras, e, quando isso acontece, pode buscar tarefas pendentes de outras threads. Isso proporciona uma melhor distribuição do trabalho e a redução do tempo de ociosidade de threads.
+
+Ainda assim, a escalabilidade possuí seus limites. Quando ocorre um aumento no número de threads, o tempo de execução tem a tendência de diminuir até certo ponto. Após isso, os ganhos passam a ser menos significativos. O motivo disso ocorrer é que o programa passa as ser prejudicado com custos de sincronização, gerenciamento de tarefas e disputa por recursos do processador.
+
+Portanto, a utlização da versão paralela com OpenMp é benéfica quando existe uma quantia de trabalho suficiente para compensar o custo da criação de tarefas. Mas, quando lidando com entradas menores ou uma criação excessiva de tarefas, a versão sequencial pode ser igual ou mais eficiente.
+
+6-Conclusão:
+A realização dessa atividade tornou possível a observação de como é possível utilizar o OpenMp para paralelizar algoritmos recursivos através de tarefas. 
+
+A implementação sequencial do algoritmo serviu como uma base da comparação, enquanto a implementação paralela serviu para mostrar como as diretivas "task", "taskwait", "parallel" e single podem ser utilizadas em conjunto para distribuir o trabalho entre diversas threads.
+
+De acordo com os resultados, o uso de tarefas recursivas pode trazer ganhos de desempenho, especimente em cenários onde a entrada é grande o suficiente. Porém, também ficou evidente que o paralelismo não garante automaticamente uma performance superior. Existe um custo atribuído a criação de tarefas, e ele pode prejudicar o desempenho se o programa criar tarefas pequenas demais.
+
+O uso de tarefas em OpenMp permite expressar paralelismo em algoritmos recursivos com facilidade. Ao invés de dividir o trbaalho entre threads manualmente, é possível criar tarefas e permitir o OpenMP fazer o gerencimento da distribuição. Também, mecanismos como o work stealing podem apresentar uma melhora no balanceamento de carga, especialmente no contexto de algoritmos com árvores de recursão desbalanceadas.
+
+Temos como princiap limitação o overhead. A criação de muitas tarefas pequenas pode resultar em uma versão paralela menos eficiente. Considerando isso, estratégias como a utilização de um limite sequencial são importantes para a obtenção de bons resultados.
+
+Concluímos que a utilização de OpenMP com task é uma ferramente útil para a paralelização de algoritmos recursivos, assumindo que cuidados sejam tomados. O desempenho final não é definido apenas por número de threads, mas também pela maneira de como as tarefas são criadas, do tamanho da entrada, do balanceamento de carga e da redução do overhead.
+
+
+
